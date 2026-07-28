@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+}
+
+.tb-input {
+  @apply rounded-sm border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-slate/60 outline-none transition-colors;
+}
+.tb-input:focus {
+  @apply border-ink;
+  box-shadow: 0 0 0 3px rgba(20, 33, 61, 0.08);
+}
+
+/* Respect reduced-motion preferences throughout the app. */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
