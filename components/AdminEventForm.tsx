@@ -58,6 +58,7 @@ export default function AdminEventForm({ editingFair, onDone }: { editingFair: C
 
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((f) => ({ ...f, [key]: value }));
+    setError(null);
   }
 
   async function handleSubmit(e: React.FormEvent) {
