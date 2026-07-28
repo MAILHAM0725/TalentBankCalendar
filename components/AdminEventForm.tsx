@@ -83,6 +83,10 @@ export default function AdminEventForm({ editingFair, onDone }: { editingFair: C
     setSubmitting(false);
 
     if (!result.ok) return setError(result.error ?? "Something went wrong saving this fair.");
+    if (!editingFair) {
+      setForm(EMPTY);
+      setAcknowledgeClash(false);
+    }
     onDone();
   }
 
