@@ -5,7 +5,13 @@ import { CareerFair } from "./types";
 import { SEED_EVENTS } from "./seedData";
 
 const REGISTERED_KEY = "talentbank-calendar-registered-v1";
+const CONTACT_KEY = "talentbank-calendar-contact-v1";
 const POLL_MS = 15000;
+
+export interface ContactInfo {
+  name: string;
+  email: string;
+}
 
 type MutationResult = { ok: boolean; error?: string };
 
@@ -16,8 +22,9 @@ interface StoreShape {
   addEvent: (fair: Omit<CareerFair, "id" | "registered">) => Promise<MutationResult>;
   updateEvent: (id: string, patch: Partial<CareerFair>) => Promise<MutationResult>;
   deleteEvent: (id: string) => Promise<MutationResult>;
-  registerForEvent: (id: string) => Promise<{ ok: boolean; reason?: string }>;
+  registerForEvent: (id: string, contact: ContactInfo) => Promise<{ ok: boolean; reason?: string }>;
   registeredIds: string[];
+  savedContact: ContactInfo | null;
   refresh: () => Promise<void>;
 }
 
@@ -30,6 +37,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [registeredIds, setRegisteredIds] = useState<string[]>([]);
+  const [savedContact, setSavedContact] = useState<ContactInfo | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refresh = useCallback(async () => {
@@ -50,6 +58,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     try {
       const raw = window.localStorage.getItem(REGISTERED_KEY);
       if (raw) setRegisteredIds(JSON.parse(raw));
+      const rawContact = window.localStorage.getItem(CONTACT_KEY);
+      if (rawContact) setSavedContact(JSON.parse(rawContact));
     } catch {
       // Ignore malformed storage.
     }
@@ -98,19 +108,36 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return { ok: true };
   }
 
-  async function registerForEvent(id: string): Promise<{ ok: boolean; reason?: string }> {
+  async function registerForEvent(id: string, contact: ContactInfo): Promise<{ ok: boolean; reason?: string }> {
     if (registeredIds.includes(id)) return { ok: false, reason: "You're already registered." };
-    const res = await fetch(`/api/fairs/${id}/register`, { method: "POST" });
+    const res = await fetch(`/api/fairs/${id}/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(contact),
+    });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) return { ok: false, reason: data.error ?? "Could not complete registration." };
     persistRegisteredIds([...registeredIds, id]);
+    setSavedContact(contact);
+    window.localStorage.setItem(CONTACT_KEY, JSON.stringify(contact));
     await refresh();
     return { ok: true };
   }
 
   return (
     <StoreContext.Provider
-      value={{ events, loaded, loadError, addEvent, updateEvent, deleteEvent, registerForEvent, registeredIds, refresh }}
+      value={{
+        events,
+        loaded,
+        loadError,
+        addEvent,
+        updateEvent,
+        deleteEvent,
+        registerForEvent,
+        registeredIds,
+        savedContact,
+        refresh,
+      }}
     >
       {children}
     </StoreContext.Provider>

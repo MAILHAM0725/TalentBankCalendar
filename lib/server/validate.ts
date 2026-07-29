@@ -12,6 +12,23 @@ export interface FairInput {
   status: FairStatus;
 }
 
+export interface RegistrationInput {
+  name: string;
+  email: string;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Validates the name/email a candidate submits when registering for a fair. */
+export function validateRegistrationInput(body: any): string | null {
+  if (typeof body?.name !== "string" || !body.name.trim()) return "Name is required.";
+  if (body.name.trim().length > 120) return "Name is too long.";
+  if (typeof body?.email !== "string" || !EMAIL_RE.test(body.email.trim())) {
+    return "A valid email is required.";
+  }
+  return null;
+}
+
 /** Validates the fields a client can set on a fair. Returns an error message, or null if valid. */
 export function validateFairInput(body: any): string | null {
   if (typeof body?.title !== "string" || !body.title.trim()) return "Fair name is required.";

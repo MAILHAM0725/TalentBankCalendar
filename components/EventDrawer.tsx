@@ -30,8 +30,13 @@ export default function EventDrawer({ fairs, onClose }: { fairs: CareerFair[]; o
   );
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function FairDetail({ fair }: { fair: CareerFair }) {
-  const { registerForEvent, registeredIds } = useStore();
+  const { registerForEvent, registeredIds, savedContact } = useStore();
+  const [name, setName] = useState(savedContact?.name ?? "");
+  const [email, setEmail] = useState(savedContact?.email ?? "");
+  const [fieldError, setFieldError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const status = effectiveStatus(fair);
@@ -39,11 +44,18 @@ function FairDetail({ fair }: { fair: CareerFair }) {
   const alreadyRegistered = registeredIds.includes(fair.id);
   const fillPct = Math.min(100, Math.round((fair.registered / fair.capacity) * 100));
 
-  async function handleClick() {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+    if (!trimmedName) return setFieldError("Enter your name.");
+    if (!EMAIL_RE.test(trimmedEmail)) return setFieldError("Enter a valid email.");
+
+    setFieldError(null);
     setSubmitting(true);
-    const result = await registerForEvent(fair.id);
+    const result = await registerForEvent(fair.id, { name: trimmedName, email: trimmedEmail });
     setSubmitting(false);
-    setMessage(result.ok ? "You're registered. A confirmation would be emailed here." : result.reason ?? null);
+    setMessage(result.ok ? "You're registered — check your inbox for a confirmation." : result.reason ?? null);
   }
 
   return (
@@ -99,13 +111,31 @@ function FairDetail({ fair }: { fair: CareerFair }) {
             Sold out — no seats remaining
           </button>
         ) : (
-          <button
-            onClick={handleClick}
-            disabled={submitting}
-            className="w-full rounded-sm bg-ink px-4 py-2.5 text-sm font-semibold text-paper transition-opacity hover:opacity-90 disabled:opacity-60"
-          >
-            {submitting ? "Registering…" : "Register for this fair"}
-          </button>
+          <form onSubmit={handleSubmit} className="space-y-2">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Full name"
+              autoComplete="name"
+              className="w-full rounded-sm border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-slate focus:outline-none focus:ring-1 focus:ring-ink"
+            />
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              type="email"
+              placeholder="Email address"
+              autoComplete="email"
+              className="w-full rounded-sm border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-slate focus:outline-none focus:ring-1 focus:ring-ink"
+            />
+            {fieldError && <p className="text-xs text-cancelled">{fieldError}</p>}
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full rounded-sm bg-ink px-4 py-2.5 text-sm font-semibold text-paper transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              {submitting ? "Registering…" : "Register for this fair"}
+            </button>
+          </form>
         )}
         {message && !alreadyRegistered && (
           <p className="mt-2 text-xs text-slate">{message}</p>

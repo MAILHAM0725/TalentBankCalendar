@@ -22,6 +22,16 @@ function ensureSchema(): Promise<void> {
           status TEXT NOT NULL
         );
       `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS registrations (
+          id SERIAL PRIMARY KEY,
+          fair_id TEXT NOT NULL REFERENCES fairs(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          email TEXT NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          UNIQUE (fair_id, email)
+        );
+      `;
       const { rows } = await sql`SELECT COUNT(*)::int AS count FROM fairs`;
       if (rows[0]?.count === 0) {
         for (const fair of SEED_EVENTS) {
@@ -109,14 +119,44 @@ export async function deleteFair(id: string): Promise<boolean> {
 }
 
 /**
- * Atomically claims one seat. The WHERE clause itself enforces "not cancelled,
- * not full" — so if two people register for the last seat at the same instant,
- * the database guarantees only one UPDATE actually matches a row. There's no
- * gap between "check" and "write" for a race to sneak into, unlike a plain
- * read-then-write approach.
+ * Registers a named candidate for a fair and atomically claims one seat.
+ *
+ * Order of operations matters here:
+ *  1. Insert the registration row first. The UNIQUE (fair_id, email)
+ *     constraint rejects a duplicate signup before we ever touch the seat
+ *     count, so a repeat registration can't burn a seat.
+ *  2. Then claim a seat with the same race-safe WHERE clause as before —
+ *     "not cancelled, not full" is enforced by the database itself, so two
+ *     people racing for the last seat can't both succeed.
+ *  3. If the seat claim fails (sold out / cancelled in the meantime), the
+ *     registration row we just inserted is rolled back so we don't leave an
+ *     orphaned signup with no seat behind it.
  */
-export async function registerFair(id: string): Promise<{ fair: CareerFair | null; error?: string }> {
+export async function registerFair(
+  id: string,
+  name: string,
+  email: string
+): Promise<{ fair: CareerFair | null; error?: string }> {
   await ensureSchema();
+
+  let registrationId: number;
+  try {
+    const { rows } = await sql`
+      INSERT INTO registrations (fair_id, name, email)
+      VALUES (${id}, ${name}, ${email})
+      RETURNING id;
+    `;
+    registrationId = rows[0].id;
+  } catch (err: any) {
+    if (err?.code === "23505") {
+      return { fair: null, error: "You're already registered for this fair." };
+    }
+    if (err?.code === "23503") {
+      return { fair: null, error: "This fair no longer exists." };
+    }
+    throw err;
+  }
+
   const { rows } = await sql`
     UPDATE fairs
     SET registered = registered + 1
@@ -125,7 +165,9 @@ export async function registerFair(id: string): Promise<{ fair: CareerFair | nul
   `;
   if (rows[0]) return { fair: rowToFair(rows[0]) };
 
-  // Nothing matched — find out why, so the candidate gets a clear reason.
+  // Seat claim failed — undo the registration row so it doesn't sit orphaned.
+  await sql`DELETE FROM registrations WHERE id = ${registrationId}`;
+
   const existing = await getFair(id);
   if (!existing) return { fair: null, error: "This fair no longer exists." };
   if (existing.status === "Cancelled") return { fair: null, error: "This fair has been cancelled." };
