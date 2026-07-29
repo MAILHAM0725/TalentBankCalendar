@@ -56,7 +56,8 @@ export default function AdminView() {
 
       <div className="mt-10">
         <h2 className="font-display text-xl text-ink mb-4">All fairs on the calendar</h2>
-        <EventsTable onEdit={handleEdit} />
+         <EventsTable onEdit={handleEdit} />
       </div>
+    </div>
   );
 }
