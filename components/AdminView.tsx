@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CareerFair } from "@/lib/types";
 import { useStore } from "@/lib/store";
@@ -12,6 +12,12 @@ export default function AdminView() {
   const [editingFair, setEditingFair] = useState<CareerFair | null>(null);
   const { loadError } = useStore();
   const router = useRouter();
+  const formRef = useRef<HTMLDivElement>(null);
+
+  function handleEdit(fair: CareerFair) {
+    setEditingFair(fair);
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   async function handleLogout() {
     await fetch("/api/admin/logout", { method: "POST" });
@@ -44,14 +50,13 @@ export default function AdminView() {
         </p>
       )}
 
-      <div className="mt-8">
+      <div ref={formRef} className="mt-8 scroll-mt-6">
         <AdminEventForm editingFair={editingFair} onDone={() => setEditingFair(null)} />
       </div>
 
       <div className="mt-10">
         <h2 className="font-display text-xl text-ink mb-4">All fairs on the calendar</h2>
-        <EventsTable onEdit={setEditingFair} />
+        <EventsTable onEdit={handleEdit} />
       </div>
-    </div>
   );
 }
