@@ -66,6 +66,30 @@ There's currently no login on `/admin` — anyone with the URL can edit fairs. A
 route (e.g. NextAuth, or simple middleware) before sharing this URL with your events team on a real
 deployment.
 
+## Admin login
+
+`/admin` is now gated behind a single shared password — set it once, and anyone who wants to make changes
+(your events team) signs in with it at `/admin/login`. It's enforced in two places: `middleware.ts` redirects
+anyone without a valid session straight to the login page, *and* blocks the underlying API routes directly
+(so someone can't bypass the UI by calling `/api/fairs` themselves). Reading the calendar and registering
+for a fair stay public, as they should.
+
+**Set it up:**
+
+1. Add an environment variable named `ADMIN_PASSWORD` with whatever password you want your events team to
+   use — in the Vercel dashboard under **Settings → Environment Variables** (for the deployed site), and in
+   `.env.development.local` for your own machine (or run `vercel env pull` again after adding it in the
+   dashboard, same as you did for the database).
+2. Redeploy (or just push a commit — Vercel picks it up automatically).
+3. Visit `/admin` — you'll be redirected to `/admin/login`. Enter the password you set.
+
+There's a **Log out** button in the top right of the Admin view. Sessions last 8 hours by default (see
+`maxAge` in `app/api/admin/login/route.ts`) — after that, signing in again is required.
+
+This is one shared password for the whole events team, not individual accounts — fine for a small internal
+tool, but if you need to know *which* organizer made a change, you'd want to move to per-person logins
+(e.g. NextAuth) instead.
+
 ## Public Calendar
 
 - A ledger-style grid of all 12 months, with each fair day marked by a colored dot (green = Published, amber = Sold Out, red = Cancelled).
