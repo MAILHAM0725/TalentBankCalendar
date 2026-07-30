@@ -47,3 +47,8 @@ export function formatShortDate(iso: string): string {
   const date = new Date(y, m - 1, d);
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
+/** Today's date as YYYY-MM-DD, in the visitor's local time zone — matches the format fair.date is stored in. */
+export function todayIso(): string {
+  const now = new Date();
+  return isoDate(now.getFullYear(), now.getMonth(), now.getDate());
+}

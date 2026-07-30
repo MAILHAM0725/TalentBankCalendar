@@ -7,6 +7,7 @@ import { MONTH_NAMES } from "@/lib/dateUtils";
 import FilterBar from "./FilterBar";
 import MonthCard from "./MonthCard";
 import EventDrawer from "./EventDrawer";
+import CalendarHighlights from "./CalendarHighlights";
 
 const YEAR = 2026;
 
@@ -59,6 +60,15 @@ export default function PublicCalendarView() {
 
       {loadError && (
         <p className="mt-6 rounded-sm border border-soldout/40 bg-soldout-bg px-3 py-2 text-sm text-soldout">{loadError}</p>
+      )}
+
+      {loaded && (
+        <div className="mt-8">
+          <CalendarHighlights
+            fairs={filtered}
+            onSelect={(fair) => setSelectedDay(eventsByDate[fair.date] ?? [fair])}
+          />
+        </div>
       )}
 
       {!loaded ? (
